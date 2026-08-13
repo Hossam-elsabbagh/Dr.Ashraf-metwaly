@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import * as SplashScreen from 'expo-splash-screen';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Image,
@@ -24,7 +24,14 @@ import { CalendarGrid } from './src/components/CalendarGrid';
 import { ProgressCard } from './src/components/ProgressCard';
 import { TaskCard } from './src/components/TaskCard';
 import { TaskSheet } from './src/components/TaskSheet';
-import { loadTasks, saveTasks } from './src/storage/taskStorage';
+import { isSupabaseConfigured } from './src/lib/supabase';
+import {
+  createTask,
+  deleteTask,
+  loadTasks,
+  subscribeToTaskChanges,
+  updateTask,
+} from './src/storage/taskStorage';
 import {
   COLORS,
   CONTENT_TYPE_META,
@@ -48,6 +55,11 @@ SplashScreen.setOptions({ duration: 500, fade: true });
 const createTaskId = (): string =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+type SyncState = 'loading' | 'syncing' | 'synced' | 'error' | 'not-configured';
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : 'Could not sync with Supabase.';
+
 function PlannerApp() {
   const { width } = useWindowDimensions();
   const isTablet = width >= 760;
@@ -57,7 +69,10 @@ function PlannerApp() {
   const [displayMonth, setDisplayMonth] = useState(() => startOfMonth(today));
   const [selectedDate, setSelectedDate] = useState(today);
   const [tasks, setTasks] = useState<ContentTask[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [syncState, setSyncState] = useState<SyncState>(
+    isSupabaseConfigured ? 'loading' : 'not-configured',
+  );
+  const [syncError, setSyncError] = useState('');
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<ContentTask | null>(null);
 
@@ -65,25 +80,41 @@ function PlannerApp() {
   const calendarEntry = useRef(new Animated.Value(0)).current;
   const fabEntry = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    let active = true;
+  const refreshTasks = useCallback(async (showLoading = false) => {
+    if (!isSupabaseConfigured) {
+      setSyncState('not-configured');
+      return;
+    }
 
-    void loadTasks().then((savedTasks) => {
-      if (!active) return;
-      setTasks(savedTasks);
-      setHydrated(true);
-    });
+    if (showLoading) setSyncState('loading');
 
-    return () => {
-      active = false;
-    };
+    try {
+      const remoteTasks = await loadTasks();
+      setTasks(remoteTasks);
+      setSyncState('synced');
+      setSyncError('');
+    } catch (error) {
+      setSyncState('error');
+      setSyncError(errorMessage(error));
+      console.warn('Could not load tasks from Supabase.', error);
+    }
   }, []);
 
   useEffect(() => {
-    if (hydrated) {
-      void saveTasks(tasks);
-    }
-  }, [hydrated, tasks]);
+    void refreshTasks(true);
+
+    const unsubscribe = subscribeToTaskChanges(
+      () => {
+        void refreshTasks(false);
+      },
+      (error) => {
+        setSyncState('error');
+        setSyncError(error.message);
+      },
+    );
+
+    return unsubscribe;
+  }, [refreshTasks]);
 
   useEffect(() => {
     Animated.stagger(110, [
@@ -165,6 +196,21 @@ function PlannerApp() {
     };
   }, [displayMonth, monthTasks]);
 
+  const syncMeta = useMemo(() => {
+    switch (syncState) {
+      case 'synced':
+        return { label: 'Supabase synced', color: COLORS.success };
+      case 'syncing':
+        return { label: 'Syncing…', color: COLORS.primary };
+      case 'error':
+        return { label: 'Sync error', color: COLORS.danger };
+      case 'not-configured':
+        return { label: 'Supabase setup needed', color: COLORS.warning };
+      default:
+        return { label: 'Loading plan', color: COLORS.warning };
+    }
+  }, [syncState]);
+
   const configureLayout = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
@@ -200,54 +246,108 @@ function PlannerApp() {
     const now = new Date().toISOString();
     const date = toDateKey(draft.date);
 
-    setTasks((current) => {
-      if (taskId) {
-        return current.map((task) =>
-          task.id === taskId
-            ? {
-                ...task,
-                ...draft,
-                date,
-                updatedAt: now,
-              }
-            : task,
-        );
-      }
+    const existingTask = taskId
+      ? tasks.find((task) => task.id === taskId)
+      : undefined;
 
-      return [
-        ...current,
-        {
+    const taskToSave: ContentTask = existingTask
+      ? {
+          ...existingTask,
+          ...draft,
+          date,
+          updatedAt: now,
+        }
+      : {
           id: createTaskId(),
           ...draft,
           date,
           createdAt: now,
           updatedAt: now,
-        },
-      ];
-    });
+        };
 
     setSelectedDate(draft.date);
     setDisplayMonth(startOfMonth(draft.date));
+    setSyncState('syncing');
+    setSyncError('');
+
+    void (async () => {
+      try {
+        if (existingTask) {
+          await updateTask(taskToSave);
+          setTasks((current) =>
+            current.map((task) =>
+              task.id === taskToSave.id ? taskToSave : task,
+            ),
+          );
+        } else {
+          await createTask(taskToSave);
+          setTasks((current) =>
+            current.some((task) => task.id === taskToSave.id)
+              ? current.map((task) =>
+                  task.id === taskToSave.id ? taskToSave : task,
+                )
+              : [...current, taskToSave],
+          );
+        }
+
+        setSyncState('synced');
+      } catch (error) {
+        setSyncState('error');
+        setSyncError(errorMessage(error));
+        console.warn('Could not save task to Supabase.', error);
+      }
+    })();
   };
 
   const handleDeleteTask = (taskToDelete: ContentTask) => {
     configureLayout();
-    setTasks((current) =>
-      current.filter((task) => task.id !== taskToDelete.id),
-    );
+    setSyncState('syncing');
+    setSyncError('');
+
+    void (async () => {
+      try {
+        await deleteTask(taskToDelete.id);
+        setTasks((current) =>
+          current.filter((task) => task.id !== taskToDelete.id),
+        );
+        setSyncState('synced');
+      } catch (error) {
+        setSyncState('error');
+        setSyncError(errorMessage(error));
+        console.warn('Could not delete task from Supabase.', error);
+      }
+    })();
   };
 
   const handleMarkPosted = (taskToUpdate: ContentTask) => {
     configureLayout();
-    const now = new Date().toISOString();
-    setTasks((current) =>
-      current.map((task) =>
-        task.id === taskToUpdate.id
-          ? { ...task, status: 'posted', updatedAt: now }
-          : task,
-      ),
-    );
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const updatedTask: ContentTask = {
+      ...taskToUpdate,
+      status: 'posted',
+      updatedAt: new Date().toISOString(),
+    };
+
+    setSyncState('syncing');
+    setSyncError('');
+
+    void (async () => {
+      try {
+        await updateTask(updatedTask);
+        setTasks((current) =>
+          current.map((task) =>
+            task.id === updatedTask.id ? updatedTask : task,
+          ),
+        );
+        setSyncState('synced');
+        void Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success,
+        );
+      } catch (error) {
+        setSyncState('error');
+        setSyncError(errorMessage(error));
+        console.warn('Could not mark task as posted in Supabase.', error);
+      }
+    })();
   };
 
   const moveMonth = (amount: number) => {
@@ -347,16 +447,21 @@ function PlannerApp() {
               </View>
               <View style={styles.savedPill}>
                 <View
-                  style={[
-                    styles.savedDot,
-                    { backgroundColor: hydrated ? COLORS.success : COLORS.warning },
-                  ]}
+                  style={[styles.savedDot, { backgroundColor: syncMeta.color }]}
                 />
-                <Text style={styles.savedText}>
-                  {hydrated ? 'Saved locally' : 'Loading plan'}
-                </Text>
+                <Text style={styles.savedText}>{syncMeta.label}</Text>
               </View>
             </View>
+
+            {syncState === 'error' || syncState === 'not-configured' ? (
+              <View style={styles.syncNotice}>
+                <Text style={styles.syncNoticeText}>
+                  {syncState === 'not-configured'
+                    ? 'Connect Supabase by adding the Project URL and Publishable key to your environment variables.'
+                    : syncError || 'Could not connect to Supabase. Check the project URL, key and RLS policies.'}
+                </Text>
+              </View>
+            ) : null}
 
             <ScrollView
               horizontal
@@ -781,6 +886,22 @@ const styles = StyleSheet.create({
   },
   progressCard: {
     width: 177,
+  },
+  syncNotice: {
+    marginTop: 10,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.borderStrong,
+    backgroundColor: COLORS.primaryMist,
+  },
+  syncNoticeText: {
+    color: COLORS.inkSoft,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
   },
   calendarHeader: {
     flexDirection: 'row',

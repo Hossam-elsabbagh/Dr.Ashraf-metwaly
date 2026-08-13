@@ -51,3 +51,7 @@ Then scan the QR code with Expo Go, or press:
 ## Storage note
 
 This version stores tasks locally on the device. It does not yet sync the schedule between multiple team members or devices. A shared database can replace the storage module later without redesigning the interface.
+
+## Supabase cloud sync
+
+This version stores content tasks in Supabase instead of device-only storage. Run `supabase/setup.sql`, create `.env` from `.env.example`, and add the same variables to Vercel. See `SUPABASE_SETUP.md`.
