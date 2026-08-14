@@ -93,23 +93,6 @@ export function CalendarGrid({
                     </Text>
                   </View>
 
-                  <AnimatedPressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Add task on ${day.key}`}
-                    hitSlop={8}
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      onAddDate(day.date);
-                    }}
-                    style={[styles.miniAdd, compact && styles.miniAddCompact]}
-                    scaleTo={0.84}
-                  >
-                    <Text
-                      style={[styles.miniAddText, compact && styles.miniAddTextCompact]}
-                    >
-                      +
-                    </Text>
-                  </AnimatedPressable>
                 </View>
 
                 <View style={styles.taskArea}>
@@ -141,6 +124,26 @@ export function CalendarGrid({
                     <Text style={styles.moreText}>+{hiddenCount} more</Text>
                   ) : null}
                 </View>
+              </AnimatedPressable>
+
+              <AnimatedPressable
+                accessibilityRole="button"
+                accessibilityLabel={`Add task on ${day.key}`}
+                hitSlop={8}
+                onPress={() => onAddDate(day.date)}
+                style={[
+                  styles.miniAdd,
+                  styles.miniAddFloating,
+                  compact && styles.miniAddCompact,
+                  compact && styles.miniAddFloatingCompact,
+                ]}
+                scaleTo={0.84}
+              >
+                <Text
+                  style={[styles.miniAddText, compact && styles.miniAddTextCompact]}
+                >
+                  +
+                </Text>
               </AnimatedPressable>
             </View>
           );
@@ -261,6 +264,16 @@ const styles = StyleSheet.create({
     width: 17,
     height: 17,
     borderRadius: 6,
+  },
+  miniAddFloating: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 3,
+  },
+  miniAddFloatingCompact: {
+    top: 8,
+    right: 8,
   },
   miniAddText: {
     marginTop: -1,

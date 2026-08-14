@@ -1,4 +1,9 @@
-import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
+import { Platform } from 'react-native';
+import {
+  isSupabaseConfigured,
+  SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_URL,
+} from '../lib/supabase';
 import type { ContentTask, ContentType, TaskStatus } from '../types';
 
 interface TaskRow {
@@ -43,60 +48,126 @@ const toUpdateRow = (task: ContentTask) => ({
   updated_at: task.updatedAt,
 });
 
-export const loadTasks = async (): Promise<ContentTask[]> => {
-  const client = getSupabaseClient();
-  const { data, error } = await client
-    .from('content_tasks')
-    .select('id,date,type,title,notes,status,created_at,updated_at')
-    .order('date', { ascending: true })
-    .order('created_at', { ascending: true });
+const parseApiError = async (response: Response): Promise<string> => {
+  const text = await response.text();
+  if (!text) return `Request failed (${response.status})`;
+  try {
+    const parsed = JSON.parse(text) as { error?: string; message?: string };
+    return parsed.error || parsed.message || text;
+  } catch {
+    return text;
+  }
+};
 
-  if (error) throw error;
-  return ((data ?? []) as TaskRow[]).map(fromRow);
+const getWebApiBase = (): string =>
+  process.env.EXPO_PUBLIC_PLANNER_API_URL?.trim() || '/api/tasks';
+
+async function webApi<T>(
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  body?: unknown,
+  id?: string,
+): Promise<T> {
+  const base = getWebApiBase();
+  const target = id ? `${base}?id=${encodeURIComponent(id)}` : base;
+  const response = await fetch(target, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseApiError(response));
+  }
+
+  const text = await response.text();
+  if (!text || text === 'null') return undefined as T;
+  return JSON.parse(text) as T;
+}
+
+async function nativeSupabaseRest<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const url = SUPABASE_URL.replace(/\/$/, '');
+  const key = SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error('Supabase is not configured.');
+
+  const response = await fetch(`${url}/rest/v1/${path}`, {
+    ...init,
+    headers: {
+      apikey: key,
+      Accept: 'application/json',
+      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(init.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseApiError(response));
+  }
+
+  const text = await response.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
+}
+
+export const loadTasks = async (): Promise<ContentTask[]> => {
+  const rows = Platform.OS === 'web'
+    ? await webApi<TaskRow[]>('GET')
+    : await nativeSupabaseRest<TaskRow[]>(
+        'content_tasks?select=id,date,type,title,notes,status,created_at,updated_at&order=date.asc,created_at.asc',
+      );
+  return (rows ?? []).map(fromRow);
 };
 
 export const createTask = async (task: ContentTask): Promise<void> => {
-  const client = getSupabaseClient();
-  const { error } = await client.from('content_tasks').insert(toInsertRow(task));
-  if (error) throw error;
+  const row = toInsertRow(task);
+  if (Platform.OS === 'web') {
+    await webApi<TaskRow[]>('POST', row);
+    return;
+  }
+  await nativeSupabaseRest<TaskRow[]>('content_tasks', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify(row),
+  });
 };
 
 export const updateTask = async (task: ContentTask): Promise<void> => {
-  const client = getSupabaseClient();
-  const { error } = await client
-    .from('content_tasks')
-    .update(toUpdateRow(task))
-    .eq('id', task.id);
-  if (error) throw error;
+  const row = toUpdateRow(task);
+  if (Platform.OS === 'web') {
+    await webApi<TaskRow[]>('PATCH', row, task.id);
+    return;
+  }
+  await nativeSupabaseRest<TaskRow[]>(
+    `content_tasks?id=eq.${encodeURIComponent(task.id)}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify(row),
+    },
+  );
 };
 
 export const deleteTask = async (id: string): Promise<void> => {
-  const client = getSupabaseClient();
-  const { error } = await client.from('content_tasks').delete().eq('id', id);
-  if (error) throw error;
+  if (Platform.OS === 'web') {
+    await webApi<TaskRow[]>('DELETE', undefined, id);
+    return;
+  }
+  await nativeSupabaseRest<TaskRow[]>(
+    `content_tasks?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      headers: { Prefer: 'return=representation' },
+    },
+  );
 };
 
 export const subscribeToTaskChanges = (
   onChange: () => void,
-  onError?: (error: Error) => void,
+  _onError?: (error: Error) => void,
 ): (() => void) => {
   if (!isSupabaseConfigured) return () => undefined;
-
-  const client = getSupabaseClient();
-  const channel = client
-    .channel('content-tasks-live-sync')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'content_tasks' },
-      () => onChange(),
-    )
-    .subscribe((status) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        onError?.(new Error(`Supabase realtime status: ${status}`));
-      }
-    });
-
-  return () => {
-    void client.removeChannel(channel);
-  };
+  const interval = setInterval(onChange, 8000);
+  return () => clearInterval(interval);
 };

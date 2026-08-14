@@ -32,7 +32,7 @@ import type {
   TaskDraft,
   TaskStatus,
 } from '../types';
-import { formatCompactDate, fromDateKey } from '../utils/date';
+import { formatCompactDate, fromDateKey, toDateKey } from '../utils/date';
 import { AnimatedPressable } from './AnimatedPressable';
 
 interface TaskSheetProps {
@@ -100,14 +100,14 @@ export function TaskSheet({
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
           speed: 18,
           bounciness: 4,
         }),
         Animated.timing(backdrop, {
           toValue: 1,
           duration: 220,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ]).start();
     });
@@ -123,12 +123,12 @@ export function TaskSheet({
       Animated.timing(translateY, {
         toValue: 760,
         duration: 210,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(backdrop, {
         toValue: 0,
         duration: 190,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start(({ finished }) => {
       if (!finished) {
@@ -143,11 +143,11 @@ export function TaskSheet({
   const runShake = () => {
     shake.setValue(0);
     Animated.sequence([
-      Animated.timing(shake, { toValue: -8, duration: 55, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 8, duration: 55, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: -5, duration: 45, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 5, duration: 45, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 0, duration: 45, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: -8, duration: 55, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(shake, { toValue: 8, duration: 55, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(shake, { toValue: -5, duration: 45, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(shake, { toValue: 5, duration: 45, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(shake, { toValue: 0, duration: 45, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   };
 
@@ -197,6 +197,21 @@ export function TaskSheet({
   const requestDelete = () => {
     if (!task) return;
 
+    if (Platform.OS === 'web') {
+      const confirmed =
+        typeof window !== 'undefined'
+          ? window.confirm(`Delete “${task.title}” from the schedule?`)
+          : true;
+
+      if (confirmed) {
+        void Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Warning,
+        );
+        closeAnimated(() => onDelete(task));
+      }
+      return;
+    }
+
     Alert.alert(
       'Delete task?',
       `“${task.title}” will be removed from the schedule.`,
@@ -235,8 +250,7 @@ export function TaskSheet({
         </Animated.View>
 
         <KeyboardAvoidingView
-          pointerEvents="box-none"
-          style={styles.keyboardRoot}
+          style={[styles.keyboardRoot, { pointerEvents: 'box-none' }]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <Animated.View
@@ -336,21 +350,49 @@ export function TaskSheet({
 
                 {showDatePicker ? (
                   <View style={styles.datePickerWrap}>
-                    <DateTimePicker
-                      value={date}
-                      mode="date"
-                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                      onChange={handleDateChange}
-                      accentColor={COLORS.primary}
-                    />
-                    {Platform.OS === 'ios' ? (
-                      <AnimatedPressable
-                        onPress={() => setShowDatePicker(false)}
-                        style={styles.dateDoneButton}
-                      >
-                        <Text style={styles.dateDoneText}>Done</Text>
-                      </AnimatedPressable>
-                    ) : null}
+                    {Platform.OS === 'web' ? (
+                      <>
+                        <TextInput
+                          value={toDateKey(date)}
+                          onChangeText={(value) => {
+                            if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                              const nextDate = fromDateKey(value);
+                              if (!Number.isNaN(nextDate.getTime())) {
+                                setDate(nextDate);
+                              }
+                            }
+                          }}
+                          placeholder="YYYY-MM-DD"
+                          autoCapitalize="none"
+                          style={styles.webDateInput}
+                        />
+                        <Text style={styles.webDateHelp}>Use YYYY-MM-DD</Text>
+                        <AnimatedPressable
+                          onPress={() => setShowDatePicker(false)}
+                          style={styles.dateDoneButton}
+                        >
+                          <Text style={styles.dateDoneText}>Done</Text>
+                        </AnimatedPressable>
+                      </>
+                    ) : (
+                      <>
+                        <DateTimePicker
+                          value={date}
+                          mode="date"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={handleDateChange}
+                          accentColor={COLORS.primary}
+                        />
+                        {Platform.OS === 'ios' ? (
+                          <AnimatedPressable
+                            onPress={() => setShowDatePicker(false)}
+                            style={styles.dateDoneButton}
+                          >
+                            <Text style={styles.dateDoneText}>Done</Text>
+                          </AnimatedPressable>
+                        ) : null}
+                      </>
+                    )}
                   </View>
                 ) : null}
               </View>
@@ -633,6 +675,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.background,
+  },
+  webDateInput: {
+    height: 46,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: COLORS.borderStrong,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 13,
+    color: COLORS.ink,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  webDateHelp: {
+    marginTop: 6,
+    color: COLORS.muted,
+    fontSize: 11,
   },
   dateDoneButton: {
     alignSelf: 'flex-end',

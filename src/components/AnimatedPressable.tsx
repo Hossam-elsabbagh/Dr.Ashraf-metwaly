@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import {
   Animated,
+  Platform,
   Pressable,
   type PressableProps,
   type StyleProp,
@@ -29,7 +30,7 @@ export function AnimatedPressable({
   const animate = (toValue: number) => {
     Animated.spring(scale, {
       toValue,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
       speed: 30,
       bounciness: 4,
     }).start();

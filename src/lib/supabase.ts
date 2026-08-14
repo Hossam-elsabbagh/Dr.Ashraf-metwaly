@@ -1,33 +1,19 @@
-import 'react-native-url-polyfill/auto';
+// Supabase REST configuration for the Dr. Ashraf content planner.
+// The publishable key is intended for frontend use. Database access is
+// controlled by Row Level Security policies in supabase/setup.sql.
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+const FALLBACK_SUPABASE_URL = 'https://ubypzxuykhbonquvucxl.supabase.co';
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
+  'sb_publishable_fBUzuVQ6hAiBEnt_FU4b_g_jVo6yg3m';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const supabasePublishableKey =
-  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
-  '';
+export const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() || FALLBACK_SUPABASE_URL;
+
+export const SUPABASE_PUBLISHABLE_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+  FALLBACK_SUPABASE_PUBLISHABLE_KEY;
 
 export const isSupabaseConfigured = Boolean(
-  supabaseUrl && supabasePublishableKey,
+  SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY,
 );
-
-export const supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabasePublishableKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-    })
-  : null;
-
-export function getSupabaseClient(): SupabaseClient {
-  if (!supabase) {
-    throw new Error(
-      'Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY.',
-    );
-  }
-
-  return supabase;
-}

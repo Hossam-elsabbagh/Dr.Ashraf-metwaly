@@ -1,0 +1,26 @@
+DR ASHRAF CONTENT PLANNER - WINDOWS NETWORK FIX
+
+1) Copy all files in this package over your project folder.
+   Keep the existing .git folder.
+
+2) In VS Code Terminal:
+   npm install
+
+3) Test Supabase FIRST:
+   npm run test:supabase
+
+   Expected:
+   [supabase-test] SUCCESS
+
+4) Then run the website:
+   npm run local
+
+5) Open:
+   http://localhost:8081
+
+6) Optional direct API check in a second terminal:
+   curl.exe -i http://localhost:8081/api/tasks
+
+This version does NOT use Node fetch() for the server-to-Supabase connection.
+It uses Node HTTPS with IPv4 first, and on Windows it falls back to curl.exe
+if Node networking still cannot reach Supabase.

@@ -1,57 +1,22 @@
 # Dr. Ashraf Content Planner
 
-A polished React Native/Expo monthly social-media planner inspired by the pink, white, and gold colors in the Dr. Ashraf Metwally Cosmetic Surgery Center logo.
+Expo/React Native content planner with persistent Supabase storage.
 
-## Included features
+## Recommended local web command
 
-- Monthly calendar arranged **Saturday through Friday**.
-- A **+ button on every date** and a floating add button.
-- Three content types: **Story**, **Reel**, and **Educational Video**.
-- Monthly target cards for:
-  - 8 reels.
-  - One story every day.
-  - 4 educational videos.
-- Add and edit the publishing date, title, notes, and status.
-- Statuses: Planned, In progress, and Posted.
-- Mark a task as posted directly from the selected-day agenda.
-- Delete or edit existing tasks.
-- Local automatic saving with AsyncStorage.
-- Animated screen entrance, animated progress bars, spring button feedback, an animated bottom sheet, layout transitions, and native haptic feedback.
-- Responsive layout for phones and tablets.
-
-## Run the project
-
-### Requirements
-
-- Node.js 22.13 or newer.
-- Android Studio/emulator, an iPhone simulator on macOS, or the Expo Go app on a physical phone.
-
-### Commands
-
-```bash
+```powershell
 npm install
-npx expo install --fix
-npx expo start
+npm run local
 ```
 
-Then scan the QR code with Expo Go, or press:
+Then open `http://localhost:8081`.
 
-- `a` for Android.
-- `i` for iOS on macOS.
+The local server serves the exported Expo web app and the `/api/tasks` endpoint from the **same origin**. The API endpoint talks to Supabase server-side, avoiding browser-level `Failed to fetch` / CORS / extension problems.
 
-## Main files
+## Vercel
 
-- `App.tsx` — main planner screen and task logic.
-- `src/components/CalendarGrid.tsx` — monthly calendar.
-- `src/components/TaskSheet.tsx` — animated add/edit form.
-- `src/storage/taskStorage.ts` — local persistence.
-- `src/theme.ts` — brand palette and content-type styling.
-- `assets/logo.png` — supplied clinic logo.
+The repo includes `api/tasks.js`, which provides the same `/api/tasks` endpoint in production, and `vercel.json`, which exports Expo web to `dist`.
 
-## Storage note
+## Supabase
 
-This version stores tasks locally on the device. It does not yet sync the schedule between multiple team members or devices. A shared database can replace the storage module later without redesigning the interface.
-
-## Supabase cloud sync
-
-This version stores content tasks in Supabase instead of device-only storage. Run `supabase/setup.sql`, create `.env` from `.env.example`, and add the same variables to Vercel. See `SUPABASE_SETUP.md`.
+Run `supabase/setup.sql` once in the Supabase SQL Editor. The current MVP policies allow public CRUD. Add authentication before sharing the planner with untrusted users.

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { COLORS, SHADOWS } from '../theme';
 
@@ -33,7 +33,7 @@ export function ProgressCard({
       Animated.delay(delay),
       Animated.spring(entry, {
         toValue: 1,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         speed: 15,
         bounciness: 5,
       }),

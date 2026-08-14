@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import type { ContentType, TaskStatus } from './types';
 
 export const COLORS = {
@@ -88,19 +89,28 @@ export const STATUS_META: Record<
   },
 };
 
-export const SHADOWS = {
-  card: {
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 4,
-  },
-  floating: {
-    shadowColor: COLORS.primaryDeep,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 18,
-    elevation: 9,
-  },
-} as const;
+export const SHADOWS = Platform.OS === 'web'
+  ? ({
+      card: {
+        boxShadow: '0 8px 18px rgba(91, 33, 55, 0.08)',
+      },
+      floating: {
+        boxShadow: '0 12px 18px rgba(142, 18, 61, 0.25)',
+      },
+    } as const)
+  : ({
+      card: {
+        shadowColor: COLORS.shadow,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 18,
+        elevation: 4,
+      },
+      floating: {
+        shadowColor: COLORS.primaryDeep,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.25,
+        shadowRadius: 18,
+        elevation: 9,
+      },
+    } as const);

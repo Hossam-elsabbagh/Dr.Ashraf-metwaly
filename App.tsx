@@ -6,6 +6,7 @@ import {
   Animated,
   Image,
   LayoutAnimation,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -120,13 +121,13 @@ function PlannerApp() {
     Animated.stagger(110, [
       Animated.spring(heroEntry, {
         toValue: 1,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         speed: 15,
         bounciness: 5,
       }),
       Animated.spring(fabEntry, {
         toValue: 1,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         speed: 15,
         bounciness: 8,
       }),
@@ -137,7 +138,7 @@ function PlannerApp() {
     calendarEntry.setValue(0);
     Animated.spring(calendarEntry, {
       toValue: 1,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
       speed: 17,
       bounciness: 3,
     }).start();
@@ -635,9 +636,9 @@ function PlannerApp() {
         </ScrollView>
 
         <Animated.View
-          pointerEvents="box-none"
           style={[
             styles.fabPosition,
+            { pointerEvents: 'box-none' },
             {
               opacity: fabEntry,
               transform: [
