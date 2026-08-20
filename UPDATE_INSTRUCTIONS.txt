@@ -1,20 +1,10 @@
-UPDATE INSTRUCTIONS
-
-1) Back up your current repository if you want an easy rollback.
-2) Copy/replace the updated source files.
-3) Run the existing-project Supabase migration BEFORE deploying:
+1) Copy these files over your existing D:\Projects\Dr.Ashraf-metwaly repository.
+2) Delete these old media-feature files if they exist:
+   src/components/MediaWorkspace.tsx
+   src/storage/mediaStorage.ts
    supabase/20260821_daily_tasks_and_media.sql
-4) Run:
-   npm install
-   npm run typecheck
-   npm run build:web
-5) Make sure .env is NOT committed. Use .env.example as the template.
-6) Commit the source + package-lock.json, then push to GitHub.
-7) In Vercel, confirm these environment variables exist:
-   EXPO_PUBLIC_SUPABASE_URL
-   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-8) Redeploy.
-
-The media files upload directly from the browser to Supabase Storage. They do
-not pass through the Vercel /api/tasks function, and the app does not compress
-or resize the uploaded originals.
+3) No new media setup is required. Keep the existing repeat_daily column. If it does not exist, run supabase/20260821_daily_tasks_only.sql in Supabase SQL Editor.
+4) Run: npm install
+5) Test: npm run typecheck
+6) Test: npm run build:web
+7) Commit and push to GitHub. Vercel should deploy the new main commit automatically.

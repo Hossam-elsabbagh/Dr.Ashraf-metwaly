@@ -1,39 +1,14 @@
-DR ASHRAF CONTENT PLANNER - UPDATED BUILD
+DR ASHRAF CONTENT PLANNER - DAILY CHECKBOX ONLY
 
-1) Existing Supabase project:
-   Open Supabase -> SQL Editor and run:
-   supabase/20260821_daily_tasks_and_media.sql
+This version restores the original planner and keeps only the Every day checkbox update.
 
-   New Supabase project only:
-   run supabase/setup.sql instead.
+1) Replace the project files.
+2) Delete the old media-feature files listed in UPDATE_INSTRUCTIONS.txt.
+3) Run: npm install
+4) Run: npm run typecheck
+5) Run: npm run build:web
+6) Push to GitHub main.
+7) Vercel will deploy the new commit automatically.
 
-2) In the project folder:
-   npm install
-
-3) Create .env from .env.example if needed and set:
-   EXPO_PUBLIC_SUPABASE_URL
-   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-
-4) Run locally:
-   npm run local
-
-5) Open:
-   http://localhost:8081
-
-6) Test before pushing:
-   npm run typecheck
-   npm run build:web
-
-7) Push the source files to GitHub, then import/redeploy the repository in Vercel.
-   Add the same two EXPO_PUBLIC_* variables in Vercel Project Settings.
-
-NEW FEATURES:
-- Every day checkbox for recurring tasks.
-- Material Link workspace on every task.
-- Final Result workspace on every task.
-- Add / rename / delete custom media partitions.
-- Multi-file original-quality upload to Supabase Storage.
-- Original downloads and PNG/JPG/WEBP image conversion downloads.
-
-IMPORTANT:
-The app does not resize, recompress or transcode uploaded originals.
+For an existing Supabase project, no additional SQL is needed if repeat_daily already exists.
+Otherwise run: supabase/20260821_daily_tasks_only.sql

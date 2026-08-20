@@ -24,7 +24,6 @@ import { AnimatedPressable } from './src/components/AnimatedPressable';
 import { CalendarGrid } from './src/components/CalendarGrid';
 import { ProgressCard } from './src/components/ProgressCard';
 import { TaskCard } from './src/components/TaskCard';
-import { MediaWorkspace } from './src/components/MediaWorkspace';
 import { TaskSheet } from './src/components/TaskSheet';
 import { isSupabaseConfigured } from './src/lib/supabase';
 import {
@@ -34,13 +33,12 @@ import {
   subscribeToTaskChanges,
   updateTask,
 } from './src/storage/taskStorage';
-import { cleanupTaskMedia } from './src/storage/mediaStorage';
 import {
   COLORS,
   CONTENT_TYPE_META,
   SHADOWS,
 } from './src/theme';
-import type { ContentTask, MediaWorkspaceType, TaskDraft } from './src/types';
+import type { ContentTask, TaskDraft } from './src/types';
 import {
   addMonths,
   countTaskOccurrencesInMonth,
@@ -80,8 +78,6 @@ function PlannerApp() {
   const [syncError, setSyncError] = useState('');
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<ContentTask | null>(null);
-  const [mediaTask, setMediaTask] = useState<ContentTask | null>(null);
-  const [mediaWorkspace, setMediaWorkspace] = useState<MediaWorkspaceType>('material');
 
   const heroEntry = useRef(new Animated.Value(0)).current;
   const calendarEntry = useRef(new Animated.Value(0)).current;
@@ -264,16 +260,6 @@ function PlannerApp() {
     setEditingTask(null);
   };
 
-  const openMediaWorkspace = (task: ContentTask, workspace: MediaWorkspaceType) => {
-    setMediaTask(task);
-    setMediaWorkspace(workspace);
-    void Haptics.selectionAsync();
-  };
-
-  const closeMediaWorkspace = () => {
-    setMediaTask(null);
-  };
-
   const handleSaveTask = (draft: TaskDraft, taskId?: string) => {
     configureLayout();
     const now = new Date().toISOString();
@@ -339,7 +325,6 @@ function PlannerApp() {
 
     void (async () => {
       try {
-        await cleanupTaskMedia(taskToDelete.id);
         await deleteTask(taskToDelete.id);
         setTasks((current) =>
           current.filter((task) => task.id !== taskToDelete.id),
@@ -642,7 +627,6 @@ function PlannerApp() {
                       task={task}
                       onEdit={openEditSheet}
                       onMarkPosted={handleMarkPosted}
-                      onOpenMedia={openMediaWorkspace}
                     />
                   </View>
                 ))}
@@ -717,13 +701,6 @@ function PlannerApp() {
           onClose={closeSheet}
           onSave={handleSaveTask}
           onDelete={handleDeleteTask}
-        />
-
-        <MediaWorkspace
-          visible={Boolean(mediaTask)}
-          task={mediaTask}
-          workspace={mediaWorkspace}
-          onClose={closeMediaWorkspace}
         />
       </SafeAreaView>
     </LinearGradient>

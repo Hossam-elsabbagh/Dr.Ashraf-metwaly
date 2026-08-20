@@ -1,36 +1,19 @@
-# Supabase setup / migration
+# Supabase setup
 
 ## Existing project
 
-Open **Supabase → SQL Editor**, paste the contents of:
+Open **Supabase -> SQL Editor** and run:
 
-`supabase/20260821_daily_tasks_and_media.sql`
+`supabase/20260821_daily_tasks_only.sql`
 
-and run it before deploying the updated frontend.
-
-It adds:
-
-- `repeat_daily` to `public.content_tasks`
-- `public.media_sections`
-- `public.media_files`
-- `planner-media` Storage bucket
-- CRUD/RLS policies required by the current no-login planner
+This keeps only the `repeat_daily` database field required by the **Every day** checkbox.
 
 ## New project
 
-Run `supabase/setup.sql` instead. It contains the complete schema from scratch.
+Run `supabase/setup.sql`.
 
-## Storage quality
+## Security note
 
-The application stores the original upload as-is. It does not resize images, reduce JPEG quality, transcode video, or overwrite the original when the download-conversion controls are used. PNG/JPG/WEBP conversion happens in the browser only when the user asks for a converted download.
+The publishable key is safe for frontend use. Do not use a secret key or `service_role` key in this project.
 
-Supabase account/project storage quotas and global upload-size settings still apply. If you need very large source videos, check **Storage → Settings → Global file size limit** in the Supabase dashboard.
-
-## Environment variables
-
-```text
-EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-```
-
-Never put a Supabase secret key or service-role key in the frontend.
+Because this MVP has no login, anyone who can access the public app can currently modify the schedule. Add Supabase Auth before sharing it with untrusted users.

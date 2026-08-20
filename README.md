@@ -1,51 +1,32 @@
 # Dr. Ashraf Content Planner
 
-Expo / React Native Web content planner with Supabase persistence and Supabase Storage media workspaces.
+Expo/React Native content planner with persistent Supabase storage.
 
-## Features
+## Retained update
 
-- Calendar-based content tasks (Story, Reel, Educational Video)
-- Optional **Every day** recurrence from the selected start date onward
-- Per-task **Material Link** workspace
-- Per-task **Final Result** workspace
-- Unlimited custom partitions inside each workspace: add, rename and delete
-- Multi-file uploads to Supabase Storage with the original file preserved (no resize/re-encode/compression in app code)
-- Original file download for all stored files
-- Browser-side image export to PNG, JPG and WEBP while keeping the stored original untouched
-- Vercel-ready Expo web build
+- Optional **Every day** checkbox for a task.
+- A checked task repeats on every calendar day from its selected start date onward.
+- No Material Link, Final Result, media partition, upload, download, or conversion features are included.
 
-## Local web
+## Existing Supabase project
+
+Run `supabase/20260821_daily_tasks_only.sql` once in the Supabase SQL Editor.
+
+## Recommended local web command
 
 ```powershell
 npm install
 npm run local
 ```
 
-Open `http://localhost:8081`.
+Then open `http://localhost:8081`.
 
-## Supabase upgrade required
+The local server serves the exported Expo web app and the `/api/tasks` endpoint from the same origin.
 
-If this planner already exists in Supabase, run:
+## Vercel
 
-`supabase/20260821_daily_tasks_and_media.sql`
+The repo includes `api/tasks.js`, which provides the `/api/tasks` endpoint in production, and `vercel.json`, which exports Expo web to `dist`.
 
-For a completely new Supabase project, run:
+## Supabase
 
-`supabase/setup.sql`
-
-The migration adds `content_tasks.repeat_daily`, `media_sections`, `media_files`, the `planner-media` Storage bucket and the required RLS policies.
-
-## Vercel / GitHub deployment
-
-1. Push the source project to GitHub (do not commit `.env`, `node_modules`, `dist` or `.expo`).
-2. Import the GitHub repository into Vercel.
-3. Add these Vercel environment variables:
-   - `EXPO_PUBLIC_SUPABASE_URL`
-   - `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-4. Deploy. `vercel.json` already uses `npm run build:web` and publishes `dist`.
-
-Large media uploads are sent directly from the browser to Supabase Storage instead of passing through `/api/tasks` or a Vercel Function, so original media is not subject to the Vercel Function request-body limit.
-
-## Security
-
-The current planner intentionally uses public/anonymous CRUD policies because the existing app has no login. Anyone who can access the admin planner can modify tasks and media. Add Supabase Auth and tighten RLS before making this tool publicly accessible.
+For a new Supabase project, run `supabase/setup.sql`. The current MVP policies allow public CRUD. Add authentication before sharing the planner with untrusted users.
