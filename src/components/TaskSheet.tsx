@@ -71,6 +71,7 @@ export function TaskSheet({
   );
   const [notes, setNotes] = useState(task?.notes ?? '');
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'planned');
+  const [repeatDaily, setRepeatDaily] = useState(task?.repeatDaily ?? false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [titleError, setTitleError] = useState(false);
 
@@ -90,6 +91,7 @@ export function TaskSheet({
     setTitle(task?.title ?? CONTENT_TYPE_META[nextType].defaultTitle);
     setNotes(task?.notes ?? '');
     setStatus(task?.status ?? 'planned');
+    setRepeatDaily(task?.repeatDaily ?? false);
     setShowDatePicker(false);
     setTitleError(false);
 
@@ -188,6 +190,7 @@ export function TaskSheet({
       title: cleanTitle,
       notes: notes.trim(),
       status,
+      repeatDaily,
     };
 
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -397,6 +400,31 @@ export function TaskSheet({
                 ) : null}
               </View>
 
+              <View>
+                <Text style={styles.label}>Repeat</Text>
+                <AnimatedPressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: repeatDaily }}
+                  accessibilityLabel="Repeat this task every day"
+                  onPress={() => {
+                    setRepeatDaily((current) => !current);
+                    void Haptics.selectionAsync();
+                  }}
+                  style={[styles.repeatOption, repeatDaily && styles.repeatOptionActive]}
+                  scaleTo={0.98}
+                >
+                  <View style={[styles.checkbox, repeatDaily && styles.checkboxActive]}>
+                    {repeatDaily ? <Text style={styles.checkboxTick}>✓</Text> : null}
+                  </View>
+                  <View style={styles.repeatCopy}>
+                    <Text style={styles.repeatTitle}>Every day</Text>
+                    <Text style={styles.repeatHelp}>
+                      Show this task on every calendar day from this date onward.
+                    </Text>
+                  </View>
+                </AnimatedPressable>
+              </View>
+
               <Animated.View style={{ transform: [{ translateX: shake }] }}>
                 <Text style={styles.label}>Task title</Text>
                 <TextInput
@@ -519,7 +547,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     backgroundColor: 'rgba(47, 32, 40, 0.42)',
   },
   keyboardRoot: {
@@ -703,6 +735,57 @@ const styles = StyleSheet.create({
     color: COLORS.primaryDark,
     fontSize: 11,
     fontWeight: '800',
+  },
+  repeatOption: {
+    minHeight: 68,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surfaceRaised,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  repeatOptionActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryMist,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: COLORS.borderStrong,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary,
+  },
+  checkboxTick: {
+    color: COLORS.white,
+    fontSize: 14,
+    lineHeight: 17,
+    fontWeight: '900',
+  },
+  repeatCopy: {
+    flex: 1,
+  },
+  repeatTitle: {
+    color: COLORS.ink,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  repeatHelp: {
+    marginTop: 3,
+    color: COLORS.muted,
+    fontSize: 10.5,
+    lineHeight: 15,
+    fontWeight: '500',
   },
   input: {
     minHeight: 52,

@@ -3,7 +3,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { COLORS, CONTENT_TYPE_META } from '../theme';
 import type { ContentTask } from '../types';
-import { buildMonthGrid, isSameDay, WEEK_DAYS } from '../utils/date';
+import { buildMonthGrid, isSameDay, taskOccursOnDate, WEEK_DAYS } from '../utils/date';
 import { AnimatedPressable } from './AnimatedPressable';
 
 interface CalendarGridProps {
@@ -28,16 +28,14 @@ export function CalendarGrid({
 
   const tasksByDate = useMemo(() => {
     const grouped = new Map<string, ContentTask[]>();
-    tasks.forEach((task) => {
-      const existing = grouped.get(task.date) ?? [];
-      existing.push(task);
-      grouped.set(task.date, existing);
-    });
-    grouped.forEach((items) => {
-      items.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    days.forEach((day) => {
+      const dayTasks = tasks
+        .filter((task) => taskOccursOnDate(task, day.key))
+        .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+      if (dayTasks.length > 0) grouped.set(day.key, dayTasks);
     });
     return grouped;
-  }, [tasks]);
+  }, [days, tasks]);
 
   return (
     <View style={styles.container}>

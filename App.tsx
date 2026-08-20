@@ -24,6 +24,7 @@ import { AnimatedPressable } from './src/components/AnimatedPressable';
 import { CalendarGrid } from './src/components/CalendarGrid';
 import { ProgressCard } from './src/components/ProgressCard';
 import { TaskCard } from './src/components/TaskCard';
+import { MediaWorkspace } from './src/components/MediaWorkspace';
 import { TaskSheet } from './src/components/TaskSheet';
 import { isSupabaseConfigured } from './src/lib/supabase';
 import {
@@ -33,14 +34,16 @@ import {
   subscribeToTaskChanges,
   updateTask,
 } from './src/storage/taskStorage';
+import { cleanupTaskMedia } from './src/storage/mediaStorage';
 import {
   COLORS,
   CONTENT_TYPE_META,
   SHADOWS,
 } from './src/theme';
-import type { ContentTask, TaskDraft } from './src/types';
+import type { ContentTask, MediaWorkspaceType, TaskDraft } from './src/types';
 import {
   addMonths,
+  countTaskOccurrencesInMonth,
   daysInMonth,
   formatLongDate,
   formatMonthTitle,
@@ -48,6 +51,7 @@ import {
   isSameMonth,
   monthKey,
   startOfMonth,
+  taskOccursOnDate,
   toDateKey,
 } from './src/utils/date';
 
@@ -76,6 +80,8 @@ function PlannerApp() {
   const [syncError, setSyncError] = useState('');
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<ContentTask | null>(null);
+  const [mediaTask, setMediaTask] = useState<ContentTask | null>(null);
+  const [mediaWorkspace, setMediaWorkspace] = useState<MediaWorkspaceType>('material');
 
   const heroEntry = useRef(new Animated.Value(0)).current;
   const calendarEntry = useRef(new Animated.Value(0)).current;
@@ -144,17 +150,16 @@ function PlannerApp() {
     }).start();
   }, [calendarEntry, displayMonth]);
 
-  const visibleMonthKey = monthKey(displayMonth);
 
   const monthTasks = useMemo(
-    () => tasks.filter((task) => task.date.startsWith(visibleMonthKey)),
-    [tasks, visibleMonthKey],
+    () => tasks.filter((task) => countTaskOccurrencesInMonth(task, displayMonth) > 0),
+    [displayMonth, tasks],
   );
 
   const selectedTasks = useMemo(
     () =>
       tasks
-        .filter((task) => task.date === toDateKey(selectedDate))
+        .filter((task) => taskOccursOnDate(task, toDateKey(selectedDate)))
         .sort((left, right) => {
           if (left.status === right.status) {
             return left.createdAt.localeCompare(right.createdAt);
@@ -172,27 +177,44 @@ function PlannerApp() {
       (task) => task.type === 'educational',
     );
     const storyTasks = monthTasks.filter((task) => task.type === 'story');
+    const totalDays = daysInMonth(displayMonth);
+    const monthPrefix = monthKey(displayMonth);
 
-    const scheduledStoryDays = new Set(storyTasks.map((task) => task.date)).size;
-    const postedStoryDays = new Set(
-      storyTasks.filter((task) => task.status === 'posted').map((task) => task.date),
-    ).size;
+    const storyDays = Array.from({ length: totalDays }, (_, index) =>
+      `${monthPrefix}-${String(index + 1).padStart(2, '0')}`,
+    );
+    const scheduledStoryDays = storyDays.filter((dayKey) =>
+      storyTasks.some((task) => taskOccursOnDate(task, dayKey)),
+    ).length;
+    const postedStoryDays = storyDays.filter((dayKey) =>
+      storyTasks.some(
+        (task) => task.status === 'posted' && taskOccursOnDate(task, dayKey),
+      ),
+    ).length;
+
+    const countOccurrences = (items: ContentTask[]) =>
+      items.reduce(
+        (sum, task) => sum + countTaskOccurrencesInMonth(task, displayMonth),
+        0,
+      );
 
     return {
       reels: {
-        value: reelTasks.length,
+        value: countOccurrences(reelTasks),
         target: 8,
-        posted: reelTasks.filter((task) => task.status === 'posted').length,
+        posted: countOccurrences(reelTasks.filter((task) => task.status === 'posted')),
       },
       stories: {
         value: scheduledStoryDays,
-        target: daysInMonth(displayMonth),
+        target: totalDays,
         posted: postedStoryDays,
       },
       education: {
-        value: educationTasks.length,
+        value: countOccurrences(educationTasks),
         target: 4,
-        posted: educationTasks.filter((task) => task.status === 'posted').length,
+        posted: countOccurrences(
+          educationTasks.filter((task) => task.status === 'posted'),
+        ),
       },
     };
   }, [displayMonth, monthTasks]);
@@ -240,6 +262,16 @@ function PlannerApp() {
   const closeSheet = () => {
     setSheetVisible(false);
     setEditingTask(null);
+  };
+
+  const openMediaWorkspace = (task: ContentTask, workspace: MediaWorkspaceType) => {
+    setMediaTask(task);
+    setMediaWorkspace(workspace);
+    void Haptics.selectionAsync();
+  };
+
+  const closeMediaWorkspace = () => {
+    setMediaTask(null);
   };
 
   const handleSaveTask = (draft: TaskDraft, taskId?: string) => {
@@ -307,6 +339,7 @@ function PlannerApp() {
 
     void (async () => {
       try {
+        await cleanupTaskMedia(taskToDelete.id);
         await deleteTask(taskToDelete.id);
         setTasks((current) =>
           current.filter((task) => task.id !== taskToDelete.id),
@@ -609,6 +642,7 @@ function PlannerApp() {
                       task={task}
                       onEdit={openEditSheet}
                       onMarkPosted={handleMarkPosted}
+                      onOpenMedia={openMediaWorkspace}
                     />
                   </View>
                 ))}
@@ -683,6 +717,13 @@ function PlannerApp() {
           onClose={closeSheet}
           onSave={handleSaveTask}
           onDelete={handleDeleteTask}
+        />
+
+        <MediaWorkspace
+          visible={Boolean(mediaTask)}
+          task={mediaTask}
+          workspace={mediaWorkspace}
+          onClose={closeMediaWorkspace}
         />
       </SafeAreaView>
     </LinearGradient>

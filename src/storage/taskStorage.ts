@@ -13,6 +13,7 @@ interface TaskRow {
   title: string;
   notes: string;
   status: TaskStatus;
+  repeat_daily: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +25,7 @@ const fromRow = (row: TaskRow): ContentTask => ({
   title: row.title,
   notes: row.notes,
   status: row.status,
+  repeatDaily: Boolean(row.repeat_daily),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -35,6 +37,7 @@ const toInsertRow = (task: ContentTask) => ({
   title: task.title,
   notes: task.notes,
   status: task.status,
+  repeat_daily: task.repeatDaily,
   created_at: task.createdAt,
   updated_at: task.updatedAt,
 });
@@ -45,6 +48,7 @@ const toUpdateRow = (task: ContentTask) => ({
   title: task.title,
   notes: task.notes,
   status: task.status,
+  repeat_daily: task.repeatDaily,
   updated_at: task.updatedAt,
 });
 
@@ -115,7 +119,7 @@ export const loadTasks = async (): Promise<ContentTask[]> => {
   const rows = Platform.OS === 'web'
     ? await webApi<TaskRow[]>('GET')
     : await nativeSupabaseRest<TaskRow[]>(
-        'content_tasks?select=id,date,type,title,notes,status,created_at,updated_at&order=date.asc,created_at.asc',
+        'content_tasks?select=id,date,type,title,notes,status,repeat_daily,created_at,updated_at&order=date.asc,created_at.asc',
       );
   return (rows ?? []).map(fromRow);
 };

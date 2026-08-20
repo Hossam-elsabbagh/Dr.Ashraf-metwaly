@@ -85,3 +85,26 @@ export const formatCompactDate = (date: Date): string =>
 
 export const monthKey = (date: Date): string =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+
+export const taskOccursOnDate = (
+  task: { date: string; repeatDaily?: boolean },
+  dateKey: string,
+): boolean => (task.repeatDaily ? task.date <= dateKey : task.date === dateKey);
+
+export const countTaskOccurrencesInMonth = (
+  task: { date: string; repeatDaily?: boolean },
+  month: Date,
+): number => {
+  const totalDays = daysInMonth(month);
+  const startKey = `${monthKey(month)}-01`;
+  const endKey = `${monthKey(month)}-${pad(totalDays)}`;
+
+  if (!task.repeatDaily) {
+    return task.date >= startKey && task.date <= endKey ? 1 : 0;
+  }
+
+  if (task.date > endKey) return 0;
+  const firstOccurrenceKey = task.date > startKey ? task.date : startKey;
+  const firstOccurrence = fromDateKey(firstOccurrenceKey);
+  return totalDays - firstOccurrence.getDate() + 1;
+};

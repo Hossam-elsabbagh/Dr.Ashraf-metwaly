@@ -193,7 +193,7 @@ async function proxyTasksRequest({ method, id, body }) {
   let requestBody;
 
   if (method === 'GET') {
-    target += '?select=id,date,type,title,notes,status,created_at,updated_at&order=date.asc,created_at.asc';
+    target += '?select=id,date,type,title,notes,status,repeat_daily,created_at,updated_at&order=date.asc,created_at.asc';
   } else if (method === 'POST') {
     headers['Content-Type'] = 'application/json';
     headers.Prefer = 'return=representation';
